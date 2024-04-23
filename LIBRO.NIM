@@ -137,6 +137,7 @@ proc Bernstein(i, n: int, u: float): float =
   echo "B = ", B,"\t .....done\n"
 
   #CastelJau1
+  
 proc deCasteljau(P: seq[tuple[x, y: float]], n: int, u: float): tuple[x, y: float] =
   ## Compute point on a Bézier curve using de Casteljau.
   ## Input: P, n, u

@@ -1,8 +1,14 @@
-import x11/xlib, x11/xutil, x11/x
+import
+  x11/xlib,
+  x11/xutil,
+  x11/x,
+  Algoritmos
+import 
+  std/math
 
 const
-  windowWidth = 1000
-  windowHeight = 600
+  windowWidth = 1200
+  windowHeight = 720
   borderWidth = 5
   eventMask = ButtonPressMask or KeyPressMask or ExposureMask
 
@@ -12,19 +18,16 @@ var
   deleteMessage: Atom
   graphicsContext: GC
 
-const
-  controlPoints: array[4, tuple[x, y: cint]] = [
-    (100, 300),
-    (300, 100),
-    (600, 500),
-    (900, 300)
-  ]
+type
+    Coord = object
+        x, y, z, w: cint
 
+var dot: Coord
 
 proc init() =
   display = XOpenDisplay(nil)
   if display == nil:
-    quit "Error al abrir el display"
+    quit "Failed to open display"
 
   let
     screen = XDefaultScreen(display)
@@ -35,7 +38,7 @@ proc init() =
   window = XCreateSimpleWindow(display, rootWindow, -1, -1, windowWidth,
       windowHeight, borderWidth, foregroundColor, backgroundColor)
 
-  discard XSetStandardProperties(display, window, "Ejemplo X11", "ventana", 0,
+  discard XSetStandardProperties(display, window, "X11 Example", "window", 0,
       nil, 0, nil)
 
   discard XSelectInput(display, window, eventMask)
@@ -46,53 +49,75 @@ proc init() =
 
   graphicsContext = XDefaultGC(display, screen)
 
+
 proc drawWindow() =
-  const text = "Hello, Nim programmers."
-  discard XDrawString(display, window, graphicsContext, 10, 50, text, text.len)
-proc drawBezierCurve() =
-  for i in 0 .. 99:
-    var t = i/100
-    var oneMinusT = 1.0 - t
-    var x = float(oneMinusT * oneMinusT * oneMinusT) * float(controlPoints[0][0]) +
-            3.0 * float(oneMinusT * oneMinusT * t) * float(controlPoints[1][0]) +
-            3.0 * float(oneMinusT * t * t) * float(controlPoints[2][0]) +
-            float(t * t * t) * float(controlPoints[3][0])
-    var y = float(oneMinusT * oneMinusT * oneMinusT) * float(controlPoints[0][1]) +
-            3.0 * float(oneMinusT * oneMinusT * t) * float(controlPoints[1][1]) +
-            3.0 * float(oneMinusT * t * t) * float(controlPoints[2][1]) +
-            float(t * t * t) * float(controlPoints[3][1])
-    var nextT = t + 0.01
-    var nextOneMinusT = 1.0 - nextT
-    var xNext = float(nextOneMinusT * nextOneMinusT * nextOneMinusT) * float(controlPoints[0][0]) +
-                3.0 * float(nextOneMinusT * nextOneMinusT * nextT) * float(controlPoints[1][0]) +
-                3.0 * float(nextOneMinusT * nextT * nextT) * float(controlPoints[2][0]) +
-                float(nextT * nextT * nextT) * float(controlPoints[3][0])
-    var yNext = float(nextOneMinusT * nextOneMinusT * nextOneMinusT) * float(controlPoints[0][1]) +
-                3.0 * float(nextOneMinusT * nextOneMinusT * nextT) * float(controlPoints[1][1]) +
-                3.0 * float(nextOneMinusT * nextT * nextT) * float(controlPoints[2][1]) +
-                float(nextT * nextT * nextT) * float(controlPoints[3][1])
-    XDrawLine(display,window,graphicsContext,int(x),int(y),int(xNext),int(yNext))
+  discard XDrawLine(display, window, graphicsContext, 600, 0, 600, 720)
+  discard XDrawLine(display, window, graphicsContext, 0, 360, 1200, 360)
+  #Algoritmos.plotQuadBezier(100,-250,-500,300,250,150,display,window,graphicsContext)
+  #discard XDrawLine(display, window, graphicsContext, 600, 360, 1200, 0)
+  #discard XDrawRectangle(display, window, graphicsContext, 600, 160, 100, 200)
+  #discard XDrawArc(display, window, graphicsContext, 600, 360, 1200, 600,5760,5760)
+  #[
+  #Draw the recangles 
+
+  const
+    Rec_CNT = 40
+    Step: int = 15
+  var
+    x,y,width,length: int
+
+  type
+    XRectangle = object
+      x,y,width,length: int
+
+  var
+    rec_arr: array[Rec_CNT,XRectangle]
+
+  for i in 0..<Rec_CNT:
+    rec_arr[i].x = Step * i
+    rec_arr[i].y = Step * i
+    rec_arr[i].width = Step * 2
+    rec_arr[i].length = Step * 3
+  
+  XDrawRectangles(display,window,graphicsContext, &rec_arr, Rec_CNT)
+   ]#
 
 proc mainLoop() =
+  ## Process events until the quit event is received
   var event: XEvent
   while true:
     discard XNextEvent(display, event.addr)
     case event.theType
     of Expose:
       drawWindow()
-      #drawBezierCurve()  # Llama a la función para dibujar la curva de Bézier
     of ClientMessage:
       if cast[Atom](event.xclient.data.l[0]) == deleteMessage:
         break
     of KeyPress:
       let key = XLookupKeysym(cast[PXKeyEvent](event.addr), 0)
       if key != 0:
-        echo "Tecla ", key, " presionada"
+        echo "Key ", key, " pressed"
     of ButtonPressMask:
-      echo "Botón del mouse ", event.xbutton.button, " presionado en ",
-          event.xbutton.x, ",", event.xbutton.y
+      var x, y,w,z: cint
+      x = event.xbutton.x
+      y = event.xbutton.y
+      echo "Mouse button ", event.xbutton.button,  " x =  ",
+          x, " y =  ", y
+      z = event.xbutton.x_root
+      w = event.xbutton.y_root
+      echo "Mouse button ", event.xbutton.button,  " z =  ",
+          z, " w =  ", w
+      
+      Algoritmos.plotQuadBezier( dot.x,dot.y,event.xbutton.x,event.xbutton.y,z,w,display,window,graphicsContext)
+      #discard XDrawLine(display, window, graphicsContext, dot.x, dot.y, x, y)
+      dot.x = z;
+      dot.y = w;
+      
+      echo "Mouse button ", event.xbutton.button,  " pressed at ",
+          event.xbutton.x, ",", event.xbutton.y, " z =  ", z," w = ",w, " X = ", x, " Y = ",y
     else:
       discard
+
 
 proc main() =
   init()
@@ -100,4 +125,51 @@ proc main() =
   discard XDestroyWindow(display, window)
   discard XCloseDisplay(display)
 
+
 main()
+
+#Horner A.1.A
+proc horner(u: float64, a:seq[float64]): float64 =
+  var c: float64 = a[a.len()-1]
+  echo "c[2]=",c,"\n"
+  for i in 1..<a.len():
+    c = a[a.len-1-i]+c*u
+    echo "c[",a.len-1-i,"]=",c,"\n"
+  result=c
+ 
+var a: seq[float64] = @[1.0,2.0,2.0,-3,-3.0,4.0,-10.0,4.1,-10.0]
+var u: float64 = 0.5
+echo horner(u,a),",",a.len()
+
+#Bernstein A1.2 y A1.3
+
+proc Bernstein(i, n: int, u: float): float =    
+  var temp: seq[float] = newSeq[float](n+1)    
+  for j in 0..n:        
+    temp[j] = 3.0    
+  temp[n-i-1] = 1.0
+  var u1: float =1-u   
+  for k in 1..n:
+    echo k,"\n"     
+    for j in k..n-1:            
+      temp[n-j] = u1*temp[n-j] + u*temp[n-j-1]
+      echo "k= ", k,"\t","j=",n-j,"\t",temp[j], "\n"
+ 
+  #return temp[n]
+  var B: float = temp[n] 
+  echo "B = ", B,"\t .....done\n"
+
+  #CastelJau1
+  
+proc deCasteljau(P: seq[tuple[x, y: float]], n: int, u: float): tuple[x, y: float] =
+  ## Compute point on a Bézier curve using de Casteljau.
+  ## Input: P, n, u
+  ## Output: C (a point)
+  var Q: seq[tuple[x, y: float]] = newSeq[tuple[x, y: float]](n + 1)
+  for i in 0 .. n:
+    Q[i] = P[i]  # Use local array so we do not destroy control points
+  for k in 1 .. n:
+    for i in 0 .. n - k:
+      let l_minus_u = 1.0 - u
+      Q[i] = (l_minus_u * Q[i][0] + u * Q[i + 1][0], l_minus_u * Q[i][1] + u * Q[i + 1][1])
+  result = Q[0]
